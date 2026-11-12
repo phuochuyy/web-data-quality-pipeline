@@ -33,6 +33,11 @@ jobs:
     needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write          # open/close the data-quality issue
+    outputs:
+      report: ${{ steps.site.outputs.ready }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -68,6 +73,12 @@ jobs:
           if [ -f reports/report.md ]; then cat reports/report.md >> "$GITHUB_STEP_SUMMARY";
           else echo "No report was produced - see the pipeline step log." >> "$GITHUB_STEP_SUMMARY"; fi
 
+      - name: Open, update or close the data-quality issue
+        if: always() && github.ref == 'refs/heads/main'
+        run: bash .github/scripts/quality_issue.sh "${{ steps.pipeline.outcome }}" reports/report.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -77,6 +88,38 @@ jobs:
             data/raw/
           retention-days: 14
 
+      - name: Build the Pages site from the latest report
+        id: site
+        if: always() && hashFiles('reports/report.html') != ''
+        run: |
+          mkdir -p _site
+          cp reports/report.html _site/index.html
+          cp reports/report.md _site/report.md
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-pages-artifact@v5
+        if: always() && steps.site.outputs.ready == 'true'
+        with:
+          path: _site
+
       - name: Fail the job if a quality check failed
         if: steps.pipeline.outcome == 'failure'
         run: exit 1
+
+  # publish the latest report, also when checks failed (the page then shows the failure)
+  deploy:
+    needs: run
+    if: always() && needs.run.outputs.report == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
