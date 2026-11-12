@@ -21,7 +21,7 @@ PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 class CheckResult:
     table: str
     check: str
-    dimension: str  # completeness | uniqueness | validity | freshness | anomaly | volume
+    dimension: str  # completeness | uniqueness | validity | consistency | freshness | anomaly | volume
     status: str
     observed: str
     expected: str
@@ -64,9 +64,47 @@ def check_unique(con, table: str, run_id: str, columns: list[str]) -> CheckResul
                        f"{dupes} duplicate rows", "0")
 
 
-def check_condition(con, table: str, run_id: str, name: str, bad_rows_sql: str, expected: str) -> CheckResult:
+def check_condition(con, table: str, run_id: str, name: str, bad_rows_sql: str, expected: str,
+                    dimension: str = "validity", severity: str = FAIL) -> CheckResult:
     bad = con.execute(f"SELECT count(*) FROM {table} WHERE run_id = ? AND ({bad_rows_sql})", [run_id]).fetchone()[0]
-    return CheckResult(table, name, "validity", PASS if bad == 0 else FAIL, f"{bad} invalid rows", expected)
+    return CheckResult(table, name, dimension, PASS if bad == 0 else severity, f"{bad} invalid rows", expected)
+
+
+# category names the source uses for books that were never categorised
+PLACEHOLDER_CATEGORIES = ("Default", "Add a comment")
+
+
+def check_one_key_per_url(con, table: str, run_id: str, key: str) -> CheckResult:
+    """Each product page must have exactly one key, and no key may be shared by two pages."""
+    urls, keys, pairs = con.execute(
+        f"""SELECT count(DISTINCT url), count(DISTINCT {key}), count(DISTINCT (url, {key}))
+            FROM {table} WHERE run_id = ? AND {key} IS NOT NULL""",
+        [run_id],
+    ).fetchone()
+    ok = urls == keys == pairs
+    return CheckResult(table, f"one_{key}_per_url", "consistency", PASS if ok else FAIL,
+                       f"{urls} urls, {keys} {key}s, {pairs} pairs", "1:1")
+
+
+def detail_checks(con, table: str, run_id: str) -> list[CheckResult]:
+    """Cross-checks between the listing page and each book's own page (accuracy/consistency)."""
+    fetched = con.execute(f"SELECT count(upc) FROM {table} WHERE run_id = ?", [run_id]).fetchone()[0]
+    if not fetched:  # run without detail pages (WDQ_BOOK_DETAILS=0)
+        return []
+    return [
+        *(check_not_null(con, table, run_id, c) for c in ("upc", "category", "stock_count")),
+        check_one_key_per_url(con, table, run_id, "upc"),
+        check_condition(con, table, run_id, "price_listing_eq_detail",
+                        "abs(price_gbp - detail_price_gbp) > 0.005", "listing price = detail price", "consistency"),
+        check_condition(con, table, run_id, "title_listing_eq_detail",
+                        "trim(title) <> trim(detail_title)", "listing title = detail title", "consistency"),
+        check_condition(con, table, run_id, "in_stock_matches_stock_count",
+                        "in_stock <> (stock_count > 0)", "in_stock = (stock_count > 0)", "consistency"),
+        check_condition(con, table, run_id, "stock_count_non_negative", "stock_count < 0", "stock_count >= 0"),
+        check_condition(con, table, run_id, "category_not_placeholder",
+                        "category IN (" + ", ".join(f"'{c}'" for c in PLACEHOLDER_CATEGORIES) + ")",
+                        "real category", severity=WARN),
+    ]
 
 
 def check_freshness(con, table: str, max_age: timedelta, now: datetime) -> CheckResult:
@@ -127,6 +165,7 @@ def run_checks(con: duckdb.DuckDBPyConnection, now: datetime | None = None,
             check_freshness(con, "raw_books", max_age, now),
             check_volume_anomaly(con, "raw_books", books_run),
             check_zscore_outliers(con, "raw_books", books_run, "price_gbp"),
+            *detail_checks(con, "raw_books", books_run),
         ]
     else:
         results.append(CheckResult("raw_books", "row_count", "volume", FAIL, "table empty", ">= 20"))

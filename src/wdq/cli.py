@@ -25,7 +25,7 @@ def cmd_scrape(settings: Settings, sources: list[str]) -> str:
         for source in sources:
             log.info("scraping %s (run %s)", source, run_id)
             if source == "books":
-                records = scrape_books(client, settings.books_pages)
+                records = scrape_books(client, settings.books_pages, details=settings.book_details)
             else:
                 records = scrape_quotes_js(client, settings.quotes_pages)
             paths = write_raw(records, source, run_id, settings.raw_dir)

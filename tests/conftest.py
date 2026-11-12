@@ -42,3 +42,32 @@ def books_html():
 @pytest.fixture
 def quotes_html():
     return QUOTES_HTML
+
+
+DETAIL_HTML = """
+<html><body>
+<ul class="breadcrumb">
+  <li><a href="../../index.html">Home</a></li>
+  <li><a href="../category/books_1/index.html">Books</a></li>
+  <li><a href="../category/books/poetry_23/index.html">Poetry</a></li>
+  <li class="active">A Light in the Attic</li>
+</ul>
+<div class="col-sm-6 product_main">
+  <h1>A Light in the Attic</h1>
+  <p class="price_color">£51.77</p>
+  <p class="instock availability"><i class="icon-ok"></i> In stock (22 available)</p>
+</div>
+<table class="table table-striped">
+  <tr><th>UPC</th><td>a897fe39b1053632</td></tr>
+  <tr><th>Product Type</th><td>Books</td></tr>
+  <tr><th>Price (excl. tax)</th><td>£51.77</td></tr>
+  <tr><th>Availability</th><td>In stock (22 available)</td></tr>
+  <tr><th>Number of reviews</th><td>0</td></tr>
+</table>
+</body></html>
+"""
+
+
+@pytest.fixture
+def detail_html():
+    return DETAIL_HTML

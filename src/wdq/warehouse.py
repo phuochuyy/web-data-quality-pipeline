@@ -12,7 +12,8 @@ log = logging.getLogger(__name__)
 
 TABLE_COLUMNS = {
     "raw_books": ["run_id", "title", "url", "price_gbp", "rating", "availability", "in_stock",
-                  "page", "source_url", "scraped_at"],
+                  "page", "source_url", "scraped_at",
+                  "upc", "category", "stock_count", "detail_price_gbp", "detail_title"],
     "raw_quotes": ["run_id", "text", "author", "tags", "page", "source_url", "scraped_at"],
 }
 
@@ -21,6 +22,12 @@ CREATE TABLE IF NOT EXISTS raw_books (
     run_id VARCHAR, title VARCHAR, url VARCHAR, price_gbp DOUBLE, rating INTEGER,
     availability VARCHAR, in_stock BOOLEAN, page INTEGER, source_url VARCHAR, scraped_at TIMESTAMP
 );
+-- detail-page columns, added in place so a warehouse from an older run keeps working
+ALTER TABLE raw_books ADD COLUMN IF NOT EXISTS upc VARCHAR;
+ALTER TABLE raw_books ADD COLUMN IF NOT EXISTS category VARCHAR;
+ALTER TABLE raw_books ADD COLUMN IF NOT EXISTS stock_count INTEGER;
+ALTER TABLE raw_books ADD COLUMN IF NOT EXISTS detail_price_gbp DOUBLE;
+ALTER TABLE raw_books ADD COLUMN IF NOT EXISTS detail_title VARCHAR;
 CREATE TABLE IF NOT EXISTS raw_quotes (
     run_id VARCHAR, text VARCHAR, author VARCHAR, tags VARCHAR[], page INTEGER,
     source_url VARCHAR, scraped_at TIMESTAMP
@@ -33,7 +40,7 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
 -- Silver layer: latest run only, trimmed and de-duplicated
 CREATE OR REPLACE VIEW stg_books AS
 SELECT DISTINCT ON (url)
-    trim(title) AS title, url, price_gbp, rating, in_stock, scraped_at, run_id
+    trim(title) AS title, url, upc, category, price_gbp, rating, in_stock, stock_count, scraped_at, run_id
 FROM raw_books
 WHERE run_id = (SELECT max(run_id) FROM raw_books)
 ORDER BY url;
