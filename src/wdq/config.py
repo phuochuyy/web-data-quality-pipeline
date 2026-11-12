@@ -31,6 +31,8 @@ class Settings:
     max_retries: int = _env_int("WDQ_MAX_RETRIES", 3)
     books_pages: int = _env_int("WDQ_BOOKS_PAGES", 5)
     quotes_pages: int = _env_int("WDQ_QUOTES_PAGES", 5)
+    # also fetch every book's own page (UPC, category, stock) for cross-source checks
+    book_details: bool = os.getenv("WDQ_BOOK_DETAILS", "1") != "0"
 
     @property
     def raw_dir(self) -> Path:
