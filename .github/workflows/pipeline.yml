@@ -114,6 +114,7 @@ jobs:
     permissions:
       pages: write
       id-token: write
+      deployments: write     # delete old deployment records
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -123,3 +124,14 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      # every run creates a deployment record; keep only the newest one
+      - name: Delete older Pages deployments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=100" --jq '.[1:][].id' |
+          while read -r id; do
+            gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive >/dev/null
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/deployments/$id" >/dev/null
+          done
