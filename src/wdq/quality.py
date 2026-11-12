@@ -12,6 +12,8 @@ from datetime import datetime, timedelta, timezone
 
 import duckdb
 
+from wdq.warehouse import PLACEHOLDER_SQL
+
 log = logging.getLogger(__name__)
 
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
@@ -65,13 +67,21 @@ def check_unique(con, table: str, run_id: str, columns: list[str]) -> CheckResul
 
 
 def check_condition(con, table: str, run_id: str, name: str, bad_rows_sql: str, expected: str,
-                    dimension: str = "validity", severity: str = FAIL) -> CheckResult:
+                    dimension: str = "validity") -> CheckResult:
     bad = con.execute(f"SELECT count(*) FROM {table} WHERE run_id = ? AND ({bad_rows_sql})", [run_id]).fetchone()[0]
-    return CheckResult(table, name, dimension, PASS if bad == 0 else severity, f"{bad} invalid rows", expected)
+    return CheckResult(table, name, dimension, PASS if bad == 0 else FAIL, f"{bad} invalid rows", expected)
 
 
-# category names the source uses for books that were never categorised
-PLACEHOLDER_CATEGORIES = ("Default", "Add a comment")
+def check_placeholder_share(con, table: str, run_id: str, max_share: float = 0.2) -> CheckResult:
+    """Placeholder categories are cleaned in staging; warn only if they become a large share."""
+    total, placeholders = con.execute(
+        f"""SELECT count(*), count(*) FILTER (WHERE category IN ({PLACEHOLDER_SQL}))
+            FROM {table} WHERE run_id = ?""",
+        [run_id],
+    ).fetchone()
+    share = placeholders / total if total else 0.0
+    return CheckResult(table, "placeholder_category_share", "validity", PASS if share <= max_share else WARN,
+                       f"{placeholders} ({share:.0%}) cleaned to 'Uncategorized'", f"<= {max_share:.0%}")
 
 
 def check_one_key_per_url(con, table: str, run_id: str, key: str) -> CheckResult:
@@ -101,9 +111,7 @@ def detail_checks(con, table: str, run_id: str) -> list[CheckResult]:
         check_condition(con, table, run_id, "in_stock_matches_stock_count",
                         "in_stock <> (stock_count > 0)", "in_stock = (stock_count > 0)", "consistency"),
         check_condition(con, table, run_id, "stock_count_non_negative", "stock_count < 0", "stock_count >= 0"),
-        check_condition(con, table, run_id, "category_not_placeholder",
-                        "category IN (" + ", ".join(f"'{c}'" for c in PLACEHOLDER_CATEGORIES) + ")",
-                        "real category", severity=WARN),
+        check_placeholder_share(con, table, run_id),
     ]
 
 

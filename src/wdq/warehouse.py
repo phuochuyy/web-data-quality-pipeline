@@ -17,6 +17,11 @@ TABLE_COLUMNS = {
     "raw_quotes": ["run_id", "text", "author", "tags", "page", "source_url", "scraped_at"],
 }
 
+# category names the source uses for books that were never categorised;
+# raw keeps them as scraped, staging maps them to 'Uncategorized'
+PLACEHOLDER_CATEGORIES = ("Default", "Add a comment")
+PLACEHOLDER_SQL = ", ".join(f"'{c}'" for c in PLACEHOLDER_CATEGORIES)
+
 DDL = """
 CREATE TABLE IF NOT EXISTS raw_books (
     run_id VARCHAR, title VARCHAR, url VARCHAR, price_gbp DOUBLE, rating INTEGER,
@@ -37,10 +42,12 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     PRIMARY KEY (run_id, source)
 );
 
--- Silver layer: latest run only, trimmed and de-duplicated
+-- Silver layer: latest run only, trimmed, de-duplicated, placeholder categories cleaned
 CREATE OR REPLACE VIEW stg_books AS
 SELECT DISTINCT ON (url)
-    trim(title) AS title, url, upc, category, price_gbp, rating, in_stock, stock_count, scraped_at, run_id
+    trim(title) AS title, url, upc,
+    CASE WHEN category IN ({placeholders}) THEN 'Uncategorized' ELSE category END AS category,
+    price_gbp, rating, in_stock, stock_count, scraped_at, run_id
 FROM raw_books
 WHERE run_id = (SELECT max(run_id) FROM raw_books)
 ORDER BY url;
@@ -60,7 +67,7 @@ def connect(path: Path | str) -> duckdb.DuckDBPyConnection:
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(path))
-    con.execute(DDL)
+    con.execute(DDL.format(placeholders=PLACEHOLDER_SQL))
     return con
 
 

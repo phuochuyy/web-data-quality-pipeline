@@ -109,10 +109,19 @@ def test_warehouse_from_older_version_is_migrated(tmp_path):
     assert con.execute("SELECT count(upc) FROM raw_books").fetchone()[0] == 3
 
 
-def test_placeholder_category_only_warns(tmp_path):
+def test_placeholder_categories_are_cleaned_and_tracked(tmp_path):
     rows = [book(i) for i in range(25)]
     rows[0]["category"] = "Add a comment"
     rows[1]["category"] = "Default"
-    result = by_check(load_books(tmp_path, rows))["category_not_placeholder"]
-    assert result.status == quality.WARN
-    assert result.observed == "2 invalid rows"
+    con = load_books(tmp_path, rows)
+    result = by_check(con)["placeholder_category_share"]
+    assert result.status == quality.PASS                    # 2 of 25 = 8% <= 20%
+    assert result.observed.startswith("2 (8%)")
+    cats = dict(con.execute("SELECT category, count(*) FROM stg_books GROUP BY 1").fetchall())
+    assert cats["Uncategorized"] == 2 and "Default" not in cats
+    assert con.execute("SELECT count(*) FROM raw_books WHERE category = 'Default'").fetchone()[0] == 1
+
+
+def test_many_placeholder_categories_warn(tmp_path):
+    rows = [book(i, category="Default" if i < 10 else "Poetry") for i in range(25)]
+    assert by_check(load_books(tmp_path, rows))["placeholder_category_share"].status == quality.WARN
