@@ -1,6 +1,6 @@
 # Web Data Quality Report
 
-Generated: 2026-11-12 10:39 UTC · Overall: **⚠️ WARN** · 25 pass / 1 warn / 0 fail
+Generated: 2026-11-12 11:07 UTC · Overall: **✅ PASS** · 26 pass / 0 warn / 0 fail
 
 ## Quality checks
 
@@ -14,7 +14,7 @@ Generated: 2026-11-12 10:39 UTC · Overall: **⚠️ WARN** · 25 pass / 1 warn 
 | ✅ PASS | raw_books | unique:url | uniqueness | 0 duplicate rows | 0 |
 | ✅ PASS | raw_books | price_positive | validity | 0 invalid rows | price_gbp > 0 |
 | ✅ PASS | raw_books | rating_1_to_5 | validity | 0 invalid rows | 1..5 |
-| ✅ PASS | raw_books | freshness | freshness | last scrape 0:02:21 ago | < 26h old |
+| ✅ PASS | raw_books | freshness | freshness | last scrape 0:30:15 ago | < 26h old |
 | ✅ PASS | raw_books | row_count_vs_history | anomaly | 100 vs avg 100 (+0%) | within ±30% |
 | ✅ PASS | raw_books | outliers:price_gbp | anomaly | 0 values with \|z\| > 3.0 | 0 |
 | ✅ PASS | raw_books | not_null:upc | completeness | 0 missing (0.0%) | <= 1% missing |
@@ -25,12 +25,12 @@ Generated: 2026-11-12 10:39 UTC · Overall: **⚠️ WARN** · 25 pass / 1 warn 
 | ✅ PASS | raw_books | title_listing_eq_detail | consistency | 0 invalid rows | listing title = detail title |
 | ✅ PASS | raw_books | in_stock_matches_stock_count | consistency | 0 invalid rows | in_stock = (stock_count > 0) |
 | ✅ PASS | raw_books | stock_count_non_negative | validity | 0 invalid rows | stock_count >= 0 |
-| ⚠️ WARN | raw_books | category_not_placeholder | validity | 14 invalid rows | real category |
+| ✅ PASS | raw_books | placeholder_category_share | validity | 14 (14%) cleaned to 'Uncategorized' | <= 20% |
 | ✅ PASS | raw_quotes | row_count | volume | 50 | >= 10 |
 | ✅ PASS | raw_quotes | not_null:text | completeness | 0 missing (0.0%) | <= 1% missing |
 | ✅ PASS | raw_quotes | not_null:author | completeness | 0 missing (0.0%) | <= 1% missing |
 | ✅ PASS | raw_quotes | unique:text, author | uniqueness | 0 duplicate rows | 0 |
-| ✅ PASS | raw_quotes | freshness | freshness | last scrape 0:00:33 ago | < 26h old |
+| ✅ PASS | raw_quotes | freshness | freshness | last scrape 0:28:27 ago | < 26h old |
 | ✅ PASS | raw_quotes | row_count_vs_history | anomaly | 50 vs avg 50 (+0%) | within ±30% |
 
 ## Latest data
@@ -52,10 +52,10 @@ Generated: 2026-11-12 10:39 UTC · Overall: **⚠️ WARN** · 25 pass / 1 warn 
 | Category | Books | Units in stock | Avg price £ |
 |---|---|---|---|
 | Sequential Art | 14 | 227 | 31.91 |
+| Uncategorized | 14 | 243 | 28.1 |
 | Nonfiction | 12 | 198 | 32.48 |
-| Default | 9 | 163 | 26.85 |
 | Poetry | 7 | 129 | 36.24 |
-| Add a comment | 5 | 80 | 30.34 |
+| Fiction | 5 | 85 | 43.87 |
 
 ### Top authors (quotes)
 
