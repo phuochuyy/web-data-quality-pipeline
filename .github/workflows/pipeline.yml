@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "0 1 * * *"   # daily 01:00 UTC
   workflow_dispatch:
+    inputs:
+      freshness_sla_hours:
+        description: "Freshness SLA in hours (0 forces a FAIL, to test alerting)"
+        default: "26"
   push:
     branches: [main]
   pull_request:
@@ -49,6 +53,8 @@ jobs:
         id: pipeline
         run: wdq run
         continue-on-error: true
+        env:
+          WDQ_MAX_AGE_HOURS: ${{ inputs.freshness_sla_hours || '26' }}
 
       - uses: actions/cache/save@v6
         if: always()
