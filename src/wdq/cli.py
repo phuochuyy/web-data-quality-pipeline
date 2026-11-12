@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import timedelta
 
 from wdq import quality, warehouse
 from wdq.client import PoliteClient
@@ -38,7 +39,7 @@ def cmd_scrape(settings: Settings, sources: list[str]) -> str:
 def cmd_check_and_report(settings: Settings) -> int:
     con = warehouse.connect(settings.warehouse_path)
     try:
-        results = quality.run_checks(con)
+        results = quality.run_checks(con, max_age=timedelta(hours=settings.max_age_hours))
         paths = write_report(con, results, settings.reports_dir)
     finally:
         con.close()

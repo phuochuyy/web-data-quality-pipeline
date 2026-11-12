@@ -22,3 +22,14 @@ def test_report_files_contain_checks(tmp_path):
     assert "not_null:title" in md and "raw_quotes" in md  # quotes missing -> FAIL row is reported
     assert "FAIL" in md
     assert page.startswith("<!doctype html>") and "<table>" in page
+
+
+def test_footer_links_ci_run(monkeypatch):
+    from wdq.report import _footer
+
+    monkeypatch.delenv("GITHUB_RUN_ID", raising=False)
+    assert "local run" in _footer()
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "me/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "42")
+    assert 'href="https://github.com/me/repo/actions/runs/42"' in _footer()
