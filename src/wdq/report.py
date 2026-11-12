@@ -23,6 +23,9 @@ def collect_stats(con: duckdb.DuckDBPyConnection) -> dict:
         "books": q("""SELECT count(*), round(avg(price_gbp), 2), min(price_gbp), max(price_gbp),
                              round(avg(in_stock::INT) * 100, 1) FROM stg_books"""),
         "ratings": q("SELECT rating, count(*) FROM stg_books GROUP BY rating ORDER BY rating"),
+        "categories": q("""SELECT category, count(*) AS n, sum(stock_count), round(avg(price_gbp), 2)
+                           FROM stg_books WHERE category IS NOT NULL
+                           GROUP BY category ORDER BY n DESC, category LIMIT 5"""),
         "authors": q("SELECT author, count(*) AS n FROM stg_quotes GROUP BY author ORDER BY n DESC, author LIMIT 5"),
         "tags": q("SELECT tag, count(*) AS n FROM (SELECT unnest(tags) AS tag FROM stg_quotes) "
                   "GROUP BY tag ORDER BY n DESC, tag LIMIT 5"),
@@ -52,6 +55,8 @@ def render_markdown(results: list[CheckResult], stats: dict, generated_at: datet
         f"{books[4]}% in stock"),
         "### Books by rating",
         _md_table(["Rating", "Books"], stats["ratings"]),
+        "### Top categories (books)",
+        _md_table(["Category", "Books", "Units in stock", "Avg price £"], stats["categories"]),
         "### Top authors (quotes)",
         _md_table(["Author", "Quotes"], stats["authors"]),
         "### Top tags (quotes)",
@@ -97,6 +102,8 @@ def render_html(results: list[CheckResult], stats: dict, generated_at: datetime)
 <p>Books: <b>{books[0]}</b> unique titles, avg price £{books[1]} (min £{books[2]}, max £{books[3]}),
 {books[4]}% in stock</p>
 <h3>Books by rating</h3>{_html_table(["Rating", "Books"], stats["ratings"])}
+<h3>Top categories (books)</h3>{_html_table(["Category", "Books", "Units in stock", "Avg price £"],
+                                           stats["categories"])}
 <h3>Top authors (quotes)</h3>{_html_table(["Author", "Quotes"], stats["authors"])}
 <h3>Top tags (quotes)</h3>{_html_table(["Tag", "Quotes"], stats["tags"])}
 <h2>Recent loads</h2>
