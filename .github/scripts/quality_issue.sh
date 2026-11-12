@@ -19,10 +19,10 @@ if [ "$outcome" = "failure" ]; then
   {
     echo "Run: $run_url"
     echo
-    if [ -f "$report" ] && grep -q '^| ❌' "$report"; then
+    if [ -f "$report" ] && grep -q '^| FAIL |' "$report"; then
       echo "| Status | Table | Check | Dimension | Observed | Expected |"
       echo "|---|---|---|---|---|---|"
-      grep '^| ❌' "$report"   # table rows only, not the summary line
+      grep '^| FAIL |' "$report"   # table rows only, not the summary line
     else
       echo "The pipeline failed before the checks finished (scrape or load error). See the run log."
     fi

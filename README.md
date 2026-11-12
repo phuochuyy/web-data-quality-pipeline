@@ -18,7 +18,7 @@ flowchart LR
 
 1. **Scrape** books (listing + each book's page) and quotes (a JavaScript page, rendered with Playwright). Respects `robots.txt`, waits 1 s between requests, retries on errors.
 2. **Store** the raw data unchanged as JSON and Parquet, one file per run.
-3. **Load** into DuckDB. Re-running the same run does not create duplicates. Staging views clean the data (trim, de-duplicate, placeholder categories → `Uncategorized`).
+3. **Load** into DuckDB. Re-running the same run does not create duplicates. Staging views clean the data (trim, de-duplicate, placeholder categories become `Uncategorized`).
 4. **Check** 26 rules per run (below). A `FAIL` turns the run red and opens a GitHub issue; the next good run closes it.
 5. **Report** in Markdown and HTML, published to GitHub Pages. GitHub Actions runs everything daily.
 
