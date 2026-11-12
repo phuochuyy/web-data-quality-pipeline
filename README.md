@@ -2,6 +2,8 @@
 
 A small, end-to-end web data pipeline: **scrape → raw files → DuckDB → data quality checks → automated report**, scheduled daily with GitHub Actions. Runs on Windows/Linux/macOS without Docker.
 
+**Latest report (updated by every run): https://phuochuyy.github.io/web-data-quality-pipeline/**
+
 Sources are sites built for scraping practice: [books.toscrape.com](https://books.toscrape.com) (static HTML) and [quotes.toscrape.com/js](https://quotes.toscrape.com/js/) (rendered by JavaScript).
 
 ## Architecture
@@ -13,6 +15,7 @@ flowchart LR
     C[Raw zone<br/>JSON + Parquet<br/>data/raw/source/dt=YYYY-MM-DD] --> D[(DuckDB<br/>raw tables + staging views)]
     D --> E[Quality checks<br/>SQL]
     E --> F[Report<br/>Markdown + HTML]
+    F --> H[GitHub Pages +<br/>issue on FAIL]
     G[GitHub Actions<br/>daily cron] -.runs.-> A & B
 ```
 
@@ -21,7 +24,8 @@ flowchart LR
 - **Raw zone** (`storage.py`): untouched JSON (source of truth) + Parquet, partitioned by date and `run_id`.
 - **Warehouse** (`warehouse.py`): idempotent load per `run_id`, a `pipeline_runs` table, de-duplicated staging views; new columns are added in place to a warehouse from an older version.
 - **Quality checks** (`quality.py`, 26 per run): completeness, uniqueness, validity, **consistency** (listing vs. detail page: price, title, in-stock flag vs. units, one UPC per page), freshness, row-count anomaly vs. previous runs, price outliers (z-score). `FAIL` exits non-zero so the scheduled run turns red; `WARN` is reported but does not fail the run.
-- **Report** (`report.py`): Markdown + HTML, also published to the GitHub Actions job summary.
+- **Report** (`report.py`): Markdown + HTML, published to GitHub Pages and the job summary.
+- **Alerting** (`.github/scripts/quality_issue.sh`): a failed run opens an issue labelled `data-quality` listing the failing checks (later failures comment on it); the next passing run closes it. The freshness SLA is `WDQ_MAX_AGE_HOURS` (default 26); a manual run with `freshness_sla_hours: 0` forces a FAIL to test this path.
 
 ## Run it
 
@@ -60,9 +64,9 @@ The WARN is a real finding: 14 of the first 100 books are filed under the placeh
 | Requirement | Where |
 |---|---|
 | Web scraping (BeautifulSoup, Playwright), Requests | `scrapers/books.py`, `scrapers/quotes_js.py`, `client.py` |
-| Operating and monitoring collection jobs | logging, retries, `pipeline_runs` table, red CI run on `FAIL` |
+| Operating and monitoring collection jobs | logging, retries, `pipeline_runs` table, red CI run and an auto-opened issue on `FAIL` |
 | Data quality: completeness, accuracy, consistency, freshness, anomalies | `quality.py` |
 | Cleaning and transformation, Python + SQL, Pandas | `storage.py`, staging views in `warehouse.py` |
 | ETL/ELT, scheduling | `wdq run`, `.github/workflows/pipeline.yml` (daily cron) |
-| Automated reports | `report.py` → Markdown/HTML + job summary |
+| Automated reports | `report.py` → Markdown/HTML on GitHub Pages + job summary |
 | Git, tests | feature branches, pytest, CI on every push/PR |
