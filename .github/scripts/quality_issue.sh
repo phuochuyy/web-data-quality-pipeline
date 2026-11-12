@@ -19,10 +19,10 @@ if [ "$outcome" = "failure" ]; then
   {
     echo "Run: $run_url"
     echo
-    if [ -f "$report" ] && grep -q '❌' "$report"; then
+    if [ -f "$report" ] && grep -q '^| ❌' "$report"; then
       echo "| Status | Table | Check | Dimension | Observed | Expected |"
       echo "|---|---|---|---|---|---|"
-      grep '❌' "$report"
+      grep '^| ❌' "$report"   # table rows only, not the summary line
     else
       echo "The pipeline failed before the checks finished (scrape or load error). See the run log."
     fi
@@ -34,7 +34,7 @@ if [ "$outcome" = "failure" ]; then
     gh issue create --title "Data quality run failed" --label "$label" --body-file "$body"
   fi
 elif [ -n "$open_issue" ]; then
-  gh issue close "$open_issue" --comment "All checks pass again in $run_url"
+  gh issue close "$open_issue" --comment "No failing checks in $run_url"
   echo "closed issue #$open_issue"
 else
   echo "no open data-quality issue, nothing to do"
