@@ -17,7 +17,7 @@ ICON = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌"}
 
 
 def collect_stats(con: duckdb.DuckDBPyConnection) -> dict:
-    q = lambda sql: con.execute(sql).fetchall()  # noqa: E731
+    q = lambda sql: con.execute(sql).fetchall()
     return {
         "runs": q("SELECT run_id, source, row_count, loaded_at FROM pipeline_runs ORDER BY run_id DESC, source LIMIT 10"),
         "books": q("""SELECT count(*), round(avg(price_gbp), 2), min(price_gbp), max(price_gbp),
@@ -41,15 +41,15 @@ def render_markdown(results: list[CheckResult], stats: dict, generated_at: datet
     books = stats["books"][0] if stats["books"] else (0, None, None, None, None)
     parts = [
         "# Web Data Quality Report",
-        f"Generated: {generated_at:%Y-%m-%d %H:%M} UTC · Overall: **{ICON[status]} {status}** · "
-        f"{counts['PASS']} pass / {counts['WARN']} warn / {counts['FAIL']} fail",
+        (f"Generated: {generated_at:%Y-%m-%d %H:%M} UTC · Overall: **{ICON[status]} {status}** · "
+        f"{counts['PASS']} pass / {counts['WARN']} warn / {counts['FAIL']} fail"),
         "## Quality checks",
         _md_table(["Status", "Table", "Check", "Dimension", "Observed", "Expected"],
                   [(f"{ICON[r.status]} {r.status}", r.table, r.check, r.dimension, r.observed, r.expected)
                    for r in results]),
         "## Latest data",
-        f"- Books: **{books[0]}** unique titles, avg price £{books[1]} (min £{books[2]}, max £{books[3]}), "
-        f"{books[4]}% in stock",
+        (f"- Books: **{books[0]}** unique titles, avg price £{books[1]} (min £{books[2]}, max £{books[3]}), "
+        f"{books[4]}% in stock"),
         "### Books by rating",
         _md_table(["Rating", "Books"], stats["ratings"]),
         "### Top authors (quotes)",
