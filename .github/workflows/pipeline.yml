@@ -1,0 +1,74 @@
+name: pipeline
+
+on:
+  schedule:
+    - cron: "0 1 * * *"   # daily 01:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  run:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - run: python -m playwright install --with-deps chromium
+
+      # keep the DuckDB file between runs so volume anomalies can be detected
+      - uses: actions/cache/restore@v4
+        with:
+          path: data/warehouse.duckdb
+          key: warehouse-${{ github.run_id }}
+          restore-keys: warehouse-
+
+      - name: Scrape, load, check, report
+        id: pipeline
+        run: wdq run
+        continue-on-error: true
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: data/warehouse.duckdb
+          key: warehouse-${{ github.run_id }}
+
+      - name: Publish report to the job summary
+        if: always()
+        run: |
+          if [ -f reports/report.md ]; then cat reports/report.md >> "$GITHUB_STEP_SUMMARY";
+          else echo "No report was produced - see the pipeline step log." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: data-quality-report
+          path: |
+            reports/
+            data/raw/
+          retention-days: 14
+
+      - name: Fail the job if a quality check failed
+        if: steps.pipeline.outcome == 'failure'
+        run: exit 1
